@@ -139,6 +139,10 @@
 
 
 ;---------------Part 2 Helper Functions----------------
+(define (removeI Enviornment i)
+  (if (= i 0) Enviornment (removeI (cdr Enviornment) (- i 1)))
+)
+
 (define (getAtI Enviornment i)
   (if (= i 0)
       (car Enviornment)
@@ -192,6 +196,30 @@
   )
 )
 
+(define (applyBcond Value ArithExpr ArithExpr2 Enviornment)
+  (if (equal? (cond
+    [(if (equal? Value 'gt) (> (applyArithExpr ArithExpr Enviornment) (applyArithExpr ArithExpr2 Enviornment)) #f)]
+    [(if (equal? Value 'ls) (< (applyArithExpr ArithExpr Enviornment) (applyArithExpr ArithExpr2 Enviornment)) #f)]
+    [(if (equal? Value 'eq) (equal? (applyArithExpr ArithExpr Enviornment) (applyArithExpr ArithExpr2 Enviornment)) #f)]
+  ) #t) #t #f)
+)
+
+(define (applyCondExpr program Enviornment)
+  (if (= (length program) 3)
+      (if (equal? (cond
+        [(if (equal? (car program) 'or) (or (car (cdr program)) (car (cdr (cdr program)))) #f)]
+        [(if (equal? (car program) 'and) (and (car (cdr program)) (car (cdr (cdr program)))) #f)]
+        [(if (equal? (car program) 'gt) (applyBcond (car program) (car (cdr program)) (car (cdr (cdr program))) Enviornment) #f)]
+        [(if (equal? (car program) 'lt) (applyBcond (car program) (car (cdr program)) (car (cdr (cdr program))) Enviornment) #f)]
+        [(if (equal? (car program) 'eq) (applyBcond (car program) (car (cdr program)) (car (cdr (cdr program))) Enviornment) #f)]
+       ) #t) #t #f)
+      (if (= (length program) 2)
+          (not (applyCondExpr program Enviornment))
+          #f
+      )
+   )
+)
+
 ;--------------Changes the Enviornment---------------
 (define (applyAssign Var ArithExpr Enviornment)
   ;Find Var in Enviornment
@@ -209,9 +237,19 @@
 )
 
 ;--------------Changes the Scope------------------
-(define (applyIf program Enviornment)
-  ;TODO
-  0
+
+(define (lengthCheck Enviornment originalLength)
+  (if (= (length Enviornment) originalLength) Enviornment (removeI Enviornment (- (length Enviornment) originalLength)))
+)
+
+(define (applyIf program Enviornment originalLength)
+  (if (= (length program) 0)
+      (lengthCheck Enviornment originalLength)
+      (if (applyCondExpr (car (cdr program)) Enviornment)
+          (lengthCheck (sem (car (cdr (cdr program))) Enviornment) originalLength)
+          (lengthCheck Enviornment originalLength)
+      )
+  )
 )
 
 (define (applyWhile program Enviornment)
@@ -221,22 +259,32 @@
 
 ;----------------Sem-----------------
 (define (sem program Enviornment)
-  ;TODO
   ;Figure out if Decl | Assign | If | While
-  (if (isDecl )
-      (applyDecl )
-      (if (isAssign )
-          (applyAssign )
-          (if (isIf )
-              (applyIf )
-              (if (isWhile )
-                  (applyWhile )
-                  #f
+  ;Apply the needed function and call sem again
+  ;If none of the above, return the enviornment
+  (if (> (length program) 0)
+      (if (equal? (car (car program)) 'if)
+          (sem (cdr program) (applyIf (car program) Enviornment (length Enviornment)))
+          (if (equal? (car (car program)) 'decl)
+              (sem (cdr program) (applyDecl (car (cdr (car program))) Enviornment))
+              (if (equal? (car (car program)) 'assign)
+                  (sem (cdr program) (applyAssign (car (cdr (car program))) (car (cdr (cdr (car program)))) Enviornment))
+                  (if (equal? (car (car program)) 'while)
+                      (sem (cdr program) (applyWhile (car (cdr (car program))) Enviornment))
+                      Enviornment
+                   )
                )
            )
        )
+      Enviornment
    )
 )
 
 ;(trace applyAssign)
-(trace changeAtI)
+;(trace changeAtI)
+(trace applyDecl)
+(trace applyIf)
+(trace applyAssign)
+(trace sem)
+(trace applyCondExpr)
+(trace removeI)
