@@ -7,7 +7,7 @@
 (provide (all-defined-out))
 
 
-;-----------Helper Functions--------------;
+;-----------Part 1 Helper Functions--------------;
 ;Check if Symbol
 (define (isSymbol parameter)
   (if (symbol? parameter) #t #f)
@@ -81,45 +81,162 @@
 (define (isSSeq parameter)
   (if (list? parameter)
       (if (and (= (length parameter) 2) (not (isSymbol (car (cdr parameter)))))
-          (if (and (isStatement parameter) (isSSeq (car (cdr parameter)))) #t #f)
-          (if (isStatement parameter) #t #f)) #f)
+          (if (and (isStatement parameter) (isSSeq (car (cdr parameter))))
+              #t
+              #f
+           )
+          (if (isStatement parameter)
+              #t
+              #f)
+       )
+      #f
+   )
 )
 
 ;Check if If
 (define (isIf parameter)
-  (if (equal? (length parameter) 3) (if (equal? (car parameter) 'if) (and (isCondExpr (car (cdr parameter))) (isSSeq (car (car (cdr (cdr parameter)))))) #f) #f)
+  (if (equal? (length parameter) 3)
+      (if (equal? (car parameter) 'if)
+          (and (isCondExpr (car (cdr parameter))) (isSSeq (car (car (cdr (cdr parameter))))))
+          #f
+       )
+      #f
+   )
 )
 
 ;Check if While
 (define (isWhile parameter)
-  (if (equal? (length parameter) 3) (if (equal? (car parameter) 'while) (and (isCondExpr (car (cdr parameter))) (isSSeq (car (car (cdr (cdr parameter)))))) #f) #f)
+  (if (equal? (length parameter) 3)
+      (if (equal? (car parameter) 'while)
+          (and (isCondExpr (car (cdr parameter))) (isSSeq (car (car (cdr (cdr parameter))))))
+          #f
+      )
+      #f
+   )
 )
 
 ;Check if Statement
 (define (isStatement parameter)
   (if (equal? (cond
-    [(if (isDecl parameter) #t #f)]
-    [(if (isAssign parameter) #t #f)]
-    [(if (isIf parameter) #t #f)]
-    [(if (isWhile parameter) #t #f)]
-  ) #t) #t #f)
+                [(if (isDecl parameter) #t #f)]
+                [(if (isAssign parameter) #t #f)]
+                [(if (isIf parameter) #t #f)]
+                [(if (isWhile parameter) #t #f)]
+                )
+              #t)
+      #t
+      #f
+   )
 )
 
-;--------------Entry point-----------------
+;--------------Synchk-----------------
 (define (synchk program)
-  (isSSeq (car program))
+  (if (and (list? program) (> (length program) 0))
+      (isSSeq (car program))
+      #f
+   )
 )
 
-;(trace synchk)
-;(trace isStatement)
-;(trace isSSeq)
-;(trace isCondExpr)
-;(trace isBcond)
-;(trace isOp)
-;(trace isSymbol)
-;(trace isNumber)
-;(trace isVar)
-;(trace isAssign)
-;(trace isArithExpr)
-;(trace isDecl)
 
+;---------------Part 2 Helper Functions----------------
+(define (getAtI Enviornment i)
+  (if (= i 0)
+      (car Enviornment)
+      (getAtI (cdr Enviornment) (- i 1))
+   )
+)
+
+(define (findVar Var Enviornment i)
+  (if (= (length Enviornment) 0)
+      -1
+      (if (equal? (car (car Enviornment)) Var)
+          i
+          (findVar Var (cdr Enviornment) (+ i 1))
+      )
+   )
+)
+
+(define (changeAtI Var Change Enviornment front i)
+  (if (= i 0)
+      (if (= (length front) 0)
+          (append (list (list Var Change)) (cdr Enviornment))
+          (if (= (length Enviornment) 1)
+              (append front (list (list Var Change)))
+              (append front (append (list (list Var Change)) (cdr Enviornment)))
+           )
+       )
+      (changeAtI Var Change (cdr Enviornment) (if (= (length front) 0) (list (car Enviornment)) (append front (list (car Enviornment)))) (- i 1))
+   )
+)
+
+(define (applyOp Value ArithExpr ArithExpr2 Envornment)
+  (cond
+    [(if (equal? Value '+) (+ (applyArithExpr ArithExpr) (applyArithExpr ArithExpr2)) #f)]
+    [(if (equal? Value '-) (- (applyArithExpr ArithExpr) (applyArithExpr ArithExpr2)) #f)]
+    [(if (equal? Value '*) (* (applyArithExpr ArithExpr) (applyArithExpr ArithExpr2)) #f)]
+    [(if (equal? Value '/) (/ (applyArithExpr ArithExpr) (applyArithExpr ArithExpr2)) #f)]
+  )
+)
+
+(define (applyArithExpr Value Enviornment)
+  ;If is a list and of length 3
+  ;Evaluate Op and other ArithExpr
+  ;else
+  ;Evaluate Num or Var
+  (if (and (list? Value) (= (length Value) 3))
+      (applyOp (car Value) (applyArithExpr (car (cdr Value))) (applyArithExpr (car (cdr (cdr Value)))) Enviornment)
+      (cond
+        [(if (number? Value) Value #f)]
+        [(if (symbol? Value) (car (cdr (getAtI Enviornment (findVar Value Enviornment 0)))) #f)]
+        )
+  )
+)
+
+;--------------Changes the Enviornment---------------
+(define (applyAssign Var ArithExpr Enviornment)
+  ;Find Var in Enviornment
+  ;Get the value for ArithExpr
+  ;Change the value of Var to be ArithExpr
+  (if (= (findVar Var Enviornment 0) -1)
+      #f
+      (changeAtI Var (applyArithExpr ArithExpr Enviornment) Enviornment '() (findVar Var Enviornment 0))
+  )
+)
+
+(define (applyDecl Var Enviornment)
+  (if (= (length Enviornment) 0) (list (list Var 0))
+  (append (list(list Var 0)) Enviornment))
+)
+
+;--------------Changes the Scope------------------
+(define (applyIf program Enviornment)
+  ;TODO
+  0
+)
+
+(define (applyWhile program Enviornment)
+  ;TODO
+  0
+)
+
+;----------------Sem-----------------
+(define (sem program Enviornment)
+  ;TODO
+  ;Figure out if Decl | Assign | If | While
+  (if (isDecl )
+      (applyDecl )
+      (if (isAssign )
+          (applyAssign )
+          (if (isIf )
+              (applyIf )
+              (if (isWhile )
+                  (applyWhile )
+                  #f
+               )
+           )
+       )
+   )
+)
+
+;(trace applyAssign)
+(trace changeAtI)
