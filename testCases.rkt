@@ -20,8 +20,8 @@
 
 (define hwCheck2
   '(
-    (decl x)
     (decl z)
+    (decl x)
     (assign x (+ y 1))
     (if (gt x 1)
         ((assign z 1))
